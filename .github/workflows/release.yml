@@ -1,0 +1,186 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+env:
+  BUN_VERSION: "1.3.6"
+  REPO_OWNER: "pirabyte"
+  REPO_NAME: "outline-cli"
+
+jobs:
+  build-binaries:
+    name: Build ${{ matrix.id }}
+    runs-on: ${{ matrix.runs_on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: darwin-arm64
+            runs_on: macos-14
+            bun_target: bun-darwin-arm64
+            archive_ext: tar.gz
+            binary_name: outline
+            asset_name: outline-darwin-arm64.tar.gz
+          - id: darwin-x64
+            runs_on: macos-13
+            bun_target: bun-darwin-x64
+            archive_ext: tar.gz
+            binary_name: outline
+            asset_name: outline-darwin-x64.tar.gz
+          - id: linux-x64
+            runs_on: ubuntu-latest
+            bun_target: bun-linux-x64
+            archive_ext: tar.gz
+            binary_name: outline
+            asset_name: outline-linux-x64.tar.gz
+          - id: windows-x64
+            runs_on: windows-latest
+            bun_target: bun-windows-x64
+            archive_ext: zip
+            binary_name: outline.exe
+            asset_name: outline-windows-x64.zip
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Compile binary
+        shell: bash
+        run: |
+          mkdir -p out
+          bun build --compile src/cli.ts --target ${{ matrix.bun_target }} --outfile "out/${{ matrix.binary_name }}"
+
+      - name: Package tar.gz (unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          mkdir -p release
+          tar -C out -czf "release/${{ matrix.asset_name }}" "${{ matrix.binary_name }}"
+
+      - name: Package zip (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release | Out-Null
+          Compress-Archive -Path "out/${{ matrix.binary_name }}" -DestinationPath "release/${{ matrix.asset_name }}"
+
+      - name: Upload packaged artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.id }}
+          path: release/${{ matrix.asset_name }}
+
+  release:
+    name: Create GitHub release
+    needs: build-binaries
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+
+      - name: Compute checksums
+        shell: bash
+        run: |
+          cd release
+          sha256sum * > SHA256SUMS.txt
+
+      - name: Extract version
+        id: meta
+        shell: bash
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/*
+          generate_release_notes: true
+
+  update-homebrew-tap:
+    name: Update Homebrew tap (optional)
+    needs: release
+    runs-on: ubuntu-latest
+    if: ${{ secrets.HOMEBREW_TAP_PAT != '' }}
+    steps:
+      - name: Checkout source repo
+        uses: actions/checkout@v4
+
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+
+      - name: Parse checksums
+        id: sums
+        shell: bash
+        run: |
+          cd release
+          DARWIN_ARM64_SHA=$(awk '/outline-darwin-arm64.tar.gz$/ {print $1}' SHA256SUMS.txt)
+          DARWIN_X64_SHA=$(awk '/outline-darwin-x64.tar.gz$/ {print $1}' SHA256SUMS.txt)
+          LINUX_X64_SHA=$(awk '/outline-linux-x64.tar.gz$/ {print $1}' SHA256SUMS.txt)
+          echo "darwin_arm64_sha=$DARWIN_ARM64_SHA" >> "$GITHUB_OUTPUT"
+          echo "darwin_x64_sha=$DARWIN_X64_SHA" >> "$GITHUB_OUTPUT"
+          echo "linux_x64_sha=$LINUX_X64_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout tap repo
+        uses: actions/checkout@v4
+        with:
+          repository: pirabyte/homebrew-outline-cli
+          token: ${{ secrets.HOMEBREW_TAP_PAT }}
+          path: tap
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Render formula
+        shell: bash
+        env:
+          VERSION: ${{ needs.release.outputs.version }}
+          REPO_OWNER: ${{ env.REPO_OWNER }}
+          REPO_NAME: ${{ env.REPO_NAME }}
+          FORMULA_PATH: tap/Formula/outline-cli.rb
+          DARWIN_ARM64_URL: https://github.com/${{ env.REPO_OWNER }}/${{ env.REPO_NAME }}/releases/download/${{ github.ref_name }}/outline-darwin-arm64.tar.gz
+          DARWIN_ARM64_SHA256: ${{ steps.sums.outputs.darwin_arm64_sha }}
+          DARWIN_X64_URL: https://github.com/${{ env.REPO_OWNER }}/${{ env.REPO_NAME }}/releases/download/${{ github.ref_name }}/outline-darwin-x64.tar.gz
+          DARWIN_X64_SHA256: ${{ steps.sums.outputs.darwin_x64_sha }}
+          LINUX_X64_URL: https://github.com/${{ env.REPO_OWNER }}/${{ env.REPO_NAME }}/releases/download/${{ github.ref_name }}/outline-linux-x64.tar.gz
+          LINUX_X64_SHA256: ${{ steps.sums.outputs.linux_x64_sha }}
+        run: |
+          mkdir -p tap/Formula
+          node scripts/render-homebrew-formula.mjs
+
+      - name: Commit and push formula
+        shell: bash
+        working-directory: tap
+        run: |
+          git config user.name "Felix D."
+          git config user.email "24978665+felix-exon@users.noreply.github.com"
+          git add Formula/outline-cli.rb
+          git commit -m "outline-cli ${{ needs.release.outputs.version }}" || exit 0
+          git push
+
