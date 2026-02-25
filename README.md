@@ -6,6 +6,7 @@ This project talks directly to Outline's RPC API (`/api/documents.*`) and is des
 
 ## Features (current MVP)
 
+- `login` command with secure OS keychain storage for API keys
 - `page get`, `list`, `create`, `update`
 - `page append`, `prepend`
 - `page move`, `archive`, `delete`, `restore`
@@ -30,6 +31,13 @@ OUTLINE_API_KEY="..." \
 node dist/cli.js page list --limit 5 --json
 ```
 
+Interactive login (stores credentials for future commands):
+
+```bash
+node dist/cli.js login
+node dist/cli.js page list --limit 5 --json
+```
+
 If using a local `.env` file:
 
 ```bash
@@ -46,11 +54,29 @@ node dist/cli.js --help
 Examples:
 
 ```bash
+node dist/cli.js login
+node dist/cli.js login --base-url https://your-outline.example.com --api-key "..." --skip-verify
 node dist/cli.js page get <id> --json
 node dist/cli.js page create --title "Draft" --text "Hello" --json
 node dist/cli.js page append <id> --stdin --json
 node dist/cli.js page delete <id> --json
 ```
+
+## Authentication precedence
+
+Commands resolve credentials in this order:
+
+1. CLI flags (`--base-url`, `--api-key`)
+2. Environment variables (`OUTLINE_BASE_URL` / `OUTLINE_API_KEY`, aliases `APP_URL` / `API_KEY`)
+3. Stored credentials from `outline login`
+
+Re-run `outline login` to rotate/update stored credentials.
+
+### Secure storage notes
+
+- API keys are stored in the OS keychain (via `keytar`)
+- Base URL metadata is stored in the user config directory
+- `--profile` is still reserved and not implemented
 
 ## Packaging and releases
 
@@ -91,4 +117,3 @@ Expected tap repo:
 - stronger append/prepend semantics for drafts
 - profile support
 - tests with mocked Outline API responses
-

@@ -21,6 +21,9 @@
     "prepublishOnly": "bun run build",
     "release:checksums": "shasum -a 256 release/* > release/SHA256SUMS.txt"
   },
+  "dependencies": {
+    "keytar": "^7.9.0"
+  },
   "devDependencies": {
     "@types/node": "^24.0.0",
     "typescript": "^5.9.0"
@@ -29,4 +32,3 @@
     "node": ">=20"
   }
 }
-

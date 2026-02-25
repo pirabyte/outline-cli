@@ -7,6 +7,7 @@ import { OutlineClient } from "./core/client.js";
 import { CliUsageError, OutlineApiError, mapErrorToExitCode } from "./core/errors.js";
 import { printOutput } from "./core/output.js";
 import { runPageCommand, pageHelp } from "./commands/page/index.js";
+import { loginHelp, runLoginCommand } from "./commands/login.js";
 
 async function main(): Promise<void> {
   const args = parseArgv(process.argv.slice(2));
@@ -18,7 +19,30 @@ async function main(): Promise<void> {
   const rootCommand = args.positionals[0];
   const jsonFlag = getFlagBoolean(args, "json");
   const quietFlag = getFlagBoolean(args, "quiet");
-  const config = loadConfig({
+
+  if (rootCommand === "help") {
+    throw new CliUsageError(rootHelp());
+  }
+
+  if (rootCommand === "login") {
+    if (hasFlag(args, "dry-run")) {
+      throw new CliUsageError("The login command does not support --dry-run.");
+    }
+
+    const execution = await runLoginCommand(args);
+    printOutput(
+      {
+        command: "login",
+        method: execution.method,
+        request: execution.request,
+        response: execution.response,
+      },
+      { json: jsonFlag ?? false, quiet: quietFlag },
+    );
+    return;
+  }
+
+  const config = await loadConfig({
     baseUrl: getFlagString(args, "base-url"),
     apiKey: getFlagString(args, "api-key"),
     json: jsonFlag,
@@ -68,6 +92,8 @@ async function dispatch(
     }
     case "help":
       throw new CliUsageError(rootHelp());
+    case "login":
+      throw new CliUsageError(loginHelp());
     default:
       throw new CliUsageError(`Unknown command: ${rootCommand}\n\n${rootHelp()}`);
   }
@@ -116,6 +142,7 @@ function rootHelp(): string {
     "  --base-url https://your-outline.example.com",
     "  --api-key <token>",
     "  or env vars: OUTLINE_BASE_URL / OUTLINE_API_KEY",
+    "  or run: outline login",
     "",
     "Global flags:",
     "  --json            JSON output",
@@ -125,6 +152,7 @@ function rootHelp(): string {
     "  --help",
     "",
     "Commands:",
+    "  outline login [options]",
     "  outline page <subcommand> [options]",
     "",
     pageHelp(),
@@ -149,4 +177,3 @@ main().catch((error: unknown) => {
 
   process.exit(exitCode);
 });
-
