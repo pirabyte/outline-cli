@@ -9,6 +9,7 @@ import { printOutput } from "./core/output.js";
 import { runPageCommand, pageHelp } from "./commands/page/index.js";
 import { loginHelp, runLoginCommand } from "./commands/login.js";
 import { logoutHelp, runLogoutCommand } from "./commands/logout.js";
+import { authHelp, runAuthCommand } from "./commands/auth.js";
 
 async function main(): Promise<void> {
   const args = parseArgv(process.argv.slice(2));
@@ -52,6 +53,24 @@ async function main(): Promise<void> {
     printOutput(
       {
         command: "logout",
+        method: execution.method,
+        request: execution.request,
+        response: execution.response,
+      },
+      { json: jsonFlag ?? false, quiet: quietFlag },
+    );
+    return;
+  }
+
+  if (rootCommand === "auth") {
+    if (hasFlag(args, "dry-run")) {
+      throw new CliUsageError("The auth command does not support --dry-run.");
+    }
+
+    const execution = await runAuthCommand(args);
+    printOutput(
+      {
+        command: `auth ${args.positionals[1] ?? ""}`.trim(),
         method: execution.method,
         request: execution.request,
         response: execution.response,
@@ -115,6 +134,8 @@ async function dispatch(
       throw new CliUsageError(loginHelp());
     case "logout":
       throw new CliUsageError(logoutHelp());
+    case "auth":
+      throw new CliUsageError(authHelp());
     default:
       throw new CliUsageError(`Unknown command: ${rootCommand}\n\n${rootHelp()}`);
   }
@@ -175,7 +196,10 @@ function rootHelp(): string {
     "Commands:",
     "  outline login [options]",
     "  outline logout [options]",
+    "  outline auth <status|whoami> [options]",
     "  outline page <subcommand> [options]",
+    "",
+    authHelp(),
     "",
     pageHelp(),
   ].join("\n");

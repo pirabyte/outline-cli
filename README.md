@@ -6,7 +6,7 @@ This project talks directly to Outline's RPC API (`/api/documents.*`) and is des
 
 ## Features (current MVP)
 
-- `login` / `logout` commands with secure OS keychain storage for API keys
+- `login` / `logout` and `auth status` / `auth whoami` commands
 - `page get`, `list`, `create`, `update`
 - `page append`, `prepend`
 - `page move`, `archive`, `delete`, `restore`
@@ -23,6 +23,32 @@ bun install
 bun run build
 ```
 
+## Install (Linux, Debian/Ubuntu)
+
+Quick install (detects `amd64`/`arm64` and installs latest release binary):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/pirabyte/outline-cli/main/install.sh | bash
+```
+
+Install a specific version:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/pirabyte/outline-cli/main/install.sh | bash -s -- --version v0.1.1
+```
+
+Install system-wide (may require `sudo`):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/pirabyte/outline-cli/main/install.sh | bash -s -- --system
+```
+
+Notes:
+
+- The installer targets Debian/Ubuntu Linux
+- It verifies release checksums by default (`SHA256SUMS.txt`)
+- `arm64` is detected, but install requires a published `outline-linux-arm64.tar.gz` asset
+
 Run:
 
 ```bash
@@ -36,6 +62,8 @@ Interactive login (stores credentials for future commands):
 ```bash
 node dist/cli.js login
 node dist/cli.js page list --limit 5 --json
+node dist/cli.js auth status --verify --json
+node dist/cli.js auth whoami --json
 node dist/cli.js logout
 ```
 
@@ -57,6 +85,8 @@ Examples:
 ```bash
 node dist/cli.js login
 node dist/cli.js login --base-url https://your-outline.example.com --api-key "..." --skip-verify
+node dist/cli.js auth status
+node dist/cli.js auth whoami --json
 node dist/cli.js logout --json
 node dist/cli.js page get <id> --json
 node dist/cli.js page create --title "Draft" --text "Hello" --json
@@ -80,6 +110,8 @@ Run `outline logout` to clear stored credentials.
 - API keys are stored in the OS keychain (via `keytar`)
 - Base URL metadata is stored in the user config directory
 - `--profile` is still reserved and not implemented
+- `auth status` inspects credential source presence and can verify with `--verify`
+- `auth whoami` calls Outline `auth.info` using resolved credentials
 
 ## Packaging and releases
 

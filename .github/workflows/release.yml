@@ -39,6 +39,12 @@ jobs:
             archive_ext: tar.gz
             binary_name: outline
             asset_name: outline-linux-x64.tar.gz
+          - id: linux-arm64
+            runs_on: ubuntu-latest
+            bun_target: bun-linux-arm64
+            archive_ext: tar.gz
+            binary_name: outline
+            asset_name: outline-linux-arm64.tar.gz
           - id: windows-x64
             runs_on: windows-latest
             bun_target: bun-windows-x64
@@ -141,9 +147,11 @@ jobs:
           DARWIN_ARM64_SHA=$(awk '/outline-darwin-arm64.tar.gz$/ {print $1}' SHA256SUMS.txt)
           DARWIN_X64_SHA=$(awk '/outline-darwin-x64.tar.gz$/ {print $1}' SHA256SUMS.txt)
           LINUX_X64_SHA=$(awk '/outline-linux-x64.tar.gz$/ {print $1}' SHA256SUMS.txt)
+          LINUX_ARM64_SHA=$(awk '/outline-linux-arm64.tar.gz$/ {print $1}' SHA256SUMS.txt)
           echo "darwin_arm64_sha=$DARWIN_ARM64_SHA" >> "$GITHUB_OUTPUT"
           echo "darwin_x64_sha=$DARWIN_X64_SHA" >> "$GITHUB_OUTPUT"
           echo "linux_x64_sha=$LINUX_X64_SHA" >> "$GITHUB_OUTPUT"
+          echo "linux_arm64_sha=$LINUX_ARM64_SHA" >> "$GITHUB_OUTPUT"
 
       - name: Checkout tap repo
         uses: actions/checkout@v4
@@ -170,6 +178,8 @@ jobs:
           DARWIN_X64_SHA256: ${{ steps.sums.outputs.darwin_x64_sha }}
           LINUX_X64_URL: https://github.com/${{ env.REPO_OWNER }}/${{ env.REPO_NAME }}/releases/download/${{ github.ref_name }}/outline-linux-x64.tar.gz
           LINUX_X64_SHA256: ${{ steps.sums.outputs.linux_x64_sha }}
+          LINUX_ARM64_URL: https://github.com/${{ env.REPO_OWNER }}/${{ env.REPO_NAME }}/releases/download/${{ github.ref_name }}/outline-linux-arm64.tar.gz
+          LINUX_ARM64_SHA256: ${{ steps.sums.outputs.linux_arm64_sha }}
         run: |
           mkdir -p tap/Formula
           node scripts/render-homebrew-formula.mjs
@@ -183,4 +193,3 @@ jobs:
           git add Formula/outline-cli.rb
           git commit -m "outline-cli ${{ needs.release.outputs.version }}" || exit 0
           git push
-
