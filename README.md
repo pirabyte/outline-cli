@@ -6,7 +6,7 @@ This project talks directly to Outline's RPC API (`/api/documents.*`) and is des
 
 ## Features (current MVP)
 
-- `login` command with secure OS keychain storage for API keys
+- `login` / `logout` commands with secure OS keychain storage for API keys
 - `page get`, `list`, `create`, `update`
 - `page append`, `prepend`
 - `page move`, `archive`, `delete`, `restore`
@@ -36,6 +36,7 @@ Interactive login (stores credentials for future commands):
 ```bash
 node dist/cli.js login
 node dist/cli.js page list --limit 5 --json
+node dist/cli.js logout
 ```
 
 If using a local `.env` file:
@@ -56,6 +57,7 @@ Examples:
 ```bash
 node dist/cli.js login
 node dist/cli.js login --base-url https://your-outline.example.com --api-key "..." --skip-verify
+node dist/cli.js logout --json
 node dist/cli.js page get <id> --json
 node dist/cli.js page create --title "Draft" --text "Hello" --json
 node dist/cli.js page append <id> --stdin --json
@@ -71,6 +73,7 @@ Commands resolve credentials in this order:
 3. Stored credentials from `outline login`
 
 Re-run `outline login` to rotate/update stored credentials.
+Run `outline logout` to clear stored credentials.
 
 ### Secure storage notes
 

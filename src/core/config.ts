@@ -1,5 +1,5 @@
 import { CliUsageError } from "./errors.js";
-import { createCredentialStore } from "./credential-store.js";
+import { createCredentialStore, type CredentialStore } from "./credential-store.js";
 
 export interface OutlineConfig {
   baseUrl: string;
@@ -12,6 +12,7 @@ export async function loadConfig(overrides?: {
   apiKey?: string;
   json?: boolean;
   profile?: string;
+  credentialStore?: CredentialStore;
 }): Promise<OutlineConfig> {
   if (overrides?.profile) {
     throw new CliUsageError("Profiles are not implemented yet. Use --base-url and --api-key (or env vars).");
@@ -28,7 +29,8 @@ export async function loadConfig(overrides?: {
   ).trim();
 
   if (!baseUrl || !apiKey) {
-    const stored = await createCredentialStore().loadDefault();
+    const store = overrides?.credentialStore ?? createCredentialStore();
+    const stored = await store.loadDefault();
     if (!baseUrl) {
       baseUrl = normalizeBaseUrl(stored?.baseUrl);
     }

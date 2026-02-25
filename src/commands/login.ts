@@ -2,7 +2,7 @@ import type { ParsedArgs } from "../core/args.js";
 import { getFlagBoolean, getFlagString, hasFlag } from "../core/args.js";
 import { OutlineClient } from "../core/client.js";
 import { normalizeBaseUrl } from "../core/config.js";
-import { createCredentialStore } from "../core/credential-store.js";
+import { createCredentialStore, type CredentialStore } from "../core/credential-store.js";
 import { CliUsageError } from "../core/errors.js";
 import { promptLine, promptSecret } from "../core/prompt.js";
 
@@ -12,25 +12,39 @@ export interface RootCommandExecution {
   response: unknown;
 }
 
-export async function runLoginCommand(args: ParsedArgs): Promise<RootCommandExecution> {
+export interface LoginCommandDeps {
+  credentialStore?: CredentialStore;
+  promptLine?: typeof promptLine;
+  promptSecret?: typeof promptSecret;
+  createClient?: (input: { baseUrl: string; apiKey: string }) => Pick<OutlineClient, "post">;
+}
+
+export async function runLoginCommand(
+  args: ParsedArgs,
+  deps?: LoginCommandDeps,
+): Promise<RootCommandExecution> {
   if (hasFlag(args, "help")) {
     throw new CliUsageError(loginHelp());
   }
 
   const skipVerify = getFlagBoolean(args, "skip-verify") ?? false;
+  const credentialStore = deps?.credentialStore ?? createCredentialStore();
+  const askLine = deps?.promptLine ?? promptLine;
+  const askSecret = deps?.promptSecret ?? promptSecret;
+  const createClient = deps?.createClient ?? ((input) => new OutlineClient(input));
 
   const providedBaseUrl = getFlagString(args, "base-url");
   const providedApiKey = getFlagString(args, "api-key");
 
-  const baseUrl = await resolveBaseUrl(providedBaseUrl);
-  const apiKey = await resolveApiKey(providedApiKey);
+  const baseUrl = await resolveBaseUrl(providedBaseUrl, askLine);
+  const apiKey = await resolveApiKey(providedApiKey, askSecret);
 
   if (!skipVerify) {
-    const client = new OutlineClient({ baseUrl, apiKey });
+    const client = createClient({ baseUrl, apiKey });
     await client.post("documents.list", { limit: 1 });
   }
 
-  await createCredentialStore().saveDefault({ baseUrl, apiKey });
+  await credentialStore.saveDefault({ baseUrl, apiKey });
 
   return {
     method: skipVerify ? "auth.login.store" : "auth.login.verify+store",
@@ -62,16 +76,16 @@ export function loginHelp(): string {
   ].join("\n");
 }
 
-async function resolveBaseUrl(raw: string | undefined): Promise<string> {
-  const value = normalizeBaseUrl(raw ?? await promptLine("Outline base URL: "));
+async function resolveBaseUrl(raw: string | undefined, askLine: typeof promptLine): Promise<string> {
+  const value = normalizeBaseUrl(raw ?? await askLine("Outline base URL: "));
   if (!value) {
     throw new CliUsageError("Missing Outline base URL");
   }
   return value;
 }
 
-async function resolveApiKey(raw: string | undefined): Promise<string> {
-  const value = (raw ?? await promptSecret("Outline API key: ")).trim();
+async function resolveApiKey(raw: string | undefined, askSecret: typeof promptSecret): Promise<string> {
+  const value = (raw ?? await askSecret("Outline API key: ")).trim();
   if (!value) {
     throw new CliUsageError("Missing Outline API key");
   }

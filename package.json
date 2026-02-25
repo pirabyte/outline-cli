@@ -17,6 +17,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "bun test",
     "start": "node dist/cli.js",
     "prepublishOnly": "bun run build",
     "release:checksums": "shasum -a 256 release/* > release/SHA256SUMS.txt"
