@@ -7,6 +7,7 @@ VERSION="${VERSION:-latest}"
 INSTALL_MODE="user"
 BIN_DIR="${BIN_DIR:-}"
 VERIFY_CHECKSUMS=1
+INSTALL_DEPS=1
 
 usage() {
   cat <<'EOF'
@@ -21,6 +22,7 @@ Options:
   --bin-dir PATH     Install to a custom bin directory
   --repo OWNER/NAME  Override GitHub repo (default: pirabyte/outline-cli)
   --no-verify        Skip SHA256 checksum verification
+  --no-install-deps  Do not auto-install missing runtime dependencies
   --help             Show this help
 
 Examples:
@@ -68,6 +70,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --no-verify)
       VERIFY_CHECKSUMS=0
+      shift
+      ;;
+    --no-install-deps)
+      INSTALL_DEPS=0
       shift
       ;;
     --help|-h)
@@ -137,6 +143,45 @@ resolve_version() {
 DISTRO="$(detect_distro)"
 ARCH="$(detect_arch)"
 TAG="$(resolve_version)"
+
+ensure_runtime_deps() {
+  local missing=()
+  local pkg
+  for pkg in libsecret-1-0 dbus-user-session; do
+    if ! dpkg-query -W -f='${Status}\n' "$pkg" 2>/dev/null | grep -q "install ok installed"; then
+      missing+=("$pkg")
+    fi
+  done
+
+  if [[ ${#missing[@]} -eq 0 ]]; then
+    return
+  fi
+
+  if [[ $INSTALL_DEPS -eq 0 ]]; then
+    die "Missing runtime dependencies: ${missing[*]}. Re-run without --no-install-deps or install them manually."
+  fi
+
+  if ! command -v apt-get >/dev/null 2>&1; then
+    die "Missing runtime dependencies: ${missing[*]} and apt-get is not available."
+  fi
+
+  log "Installing missing runtime dependencies: ${missing[*]}"
+  if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
+    apt-get update
+    apt-get install -y "${missing[@]}"
+    return
+  fi
+
+  if command -v sudo >/dev/null 2>&1; then
+    sudo apt-get update
+    sudo apt-get install -y "${missing[@]}"
+    return
+  fi
+
+  die "Need root privileges to install missing dependencies: ${missing[*]}"
+}
+
+ensure_runtime_deps
 
 if [[ -z "$BIN_DIR" ]]; then
   if [[ "$INSTALL_MODE" == "system" ]]; then
