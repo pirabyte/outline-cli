@@ -57,6 +57,7 @@ export function authHelp(): string {
 async function runAuthStatus(args: ParsedArgs, deps?: AuthCommandDeps): Promise<RootCommandExecution> {
   const credentialStore = deps?.credentialStore ?? createCredentialStore();
   const verify = getFlagBoolean(args, "verify") ?? false;
+  const storageOptions = await credentialStore.listStorageOptions();
 
   const flagBaseUrl = normalizeBaseUrl(getFlagString(args, "base-url"));
   const flagApiKey = (getFlagString(args, "api-key") ?? "").trim();
@@ -66,10 +67,12 @@ async function runAuthStatus(args: ParsedArgs, deps?: AuthCommandDeps): Promise<
   let storedLoadError: string | undefined;
   let storedBaseUrl = "";
   let storedApiKey = "";
+  let storedStorage: string | undefined;
   try {
     const stored = await credentialStore.loadDefault();
     storedBaseUrl = normalizeBaseUrl(stored?.baseUrl);
     storedApiKey = (stored?.apiKey ?? "").trim();
+    storedStorage = stored?.storage;
   } catch (error) {
     storedLoadError = formatErrorMessage(error);
   }
@@ -106,6 +109,8 @@ async function runAuthStatus(args: ParsedArgs, deps?: AuthCommandDeps): Promise<
         baseUrl: Boolean(effectiveBaseUrl),
         apiKey: Boolean(effectiveApiKey),
       },
+      storedStorage,
+      availableStorage: storageOptions,
       verification,
       storedCheck: {
         ok: !storedLoadError,

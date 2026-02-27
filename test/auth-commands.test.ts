@@ -8,17 +8,26 @@ import { OutlineApiError } from "../src/core/errors.js";
 describe("runLoginCommand", () => {
   test("prompts, verifies, and saves credentials", async () => {
     const saved: Array<{ baseUrl: string; apiKey: string }> = [];
+    const chosen: string[] = [];
     const clientCalls: Array<{ method: string; body: Record<string, unknown> }> = [];
 
     const execution = await runLoginCommand(parseArgv(["login"]), {
       promptLine: async () => "https://example.com/",
       promptSecret: async () => "secret-token",
       credentialStore: {
+        async listStorageOptions() {
+          return [
+            { kind: "keychain", available: true },
+            { kind: "file", available: true },
+          ];
+        },
         async loadDefault() {
           return undefined;
         },
-        async saveDefault(credentials) {
+        async saveDefault(credentials, options) {
           saved.push(credentials);
+          chosen.push(options?.storage ?? "keychain");
+          return "keychain";
         },
         async clearDefault() {},
       },
@@ -32,6 +41,7 @@ describe("runLoginCommand", () => {
 
     expect(clientCalls).toEqual([{ method: "documents.list", body: { limit: 1 } }]);
     expect(saved).toEqual([{ baseUrl: "https://example.com", apiKey: "secret-token" }]);
+    expect(chosen).toEqual(["keychain"]);
     expect(JSON.stringify(execution)).not.toContain("secret-token");
     expect(execution.response).toMatchObject({ verified: true, stored: "keychain" });
   });
@@ -44,11 +54,18 @@ describe("runLoginCommand", () => {
       parseArgv(["login", "--base-url", "https://example.com", "--api-key", "abc", "--skip-verify"]),
       {
         credentialStore: {
+          async listStorageOptions() {
+            return [
+              { kind: "keychain", available: true },
+              { kind: "file", available: true },
+            ];
+          },
           async loadDefault() {
             return undefined;
           },
           async saveDefault() {
             saved = true;
+            return "keychain";
           },
           async clearDefault() {},
         },
@@ -64,17 +81,53 @@ describe("runLoginCommand", () => {
     expect(execution.response).toMatchObject({ verified: false });
   });
 
+  test("stores to file backend when --store file is selected", async () => {
+    const selected: string[] = [];
+
+    const execution = await runLoginCommand(
+      parseArgv(["login", "--base-url", "https://example.com", "--api-key", "abc", "--store", "file", "--skip-verify"]),
+      {
+        credentialStore: {
+          async listStorageOptions() {
+            return [
+              { kind: "keychain", available: false, detail: "missing secret service" },
+              { kind: "file", available: true },
+            ];
+          },
+          async loadDefault() {
+            return undefined;
+          },
+          async saveDefault(_credentials, options) {
+            selected.push(options?.storage ?? "keychain");
+            return "file";
+          },
+          async clearDefault() {},
+        },
+      }
+    );
+
+    expect(selected).toEqual(["file"]);
+    expect(execution.response).toMatchObject({ stored: "file", verified: false });
+  });
+
   test("does not save on verification failure", async () => {
     let saved = false;
 
     await expect(
       runLoginCommand(parseArgv(["login", "--base-url", "https://example.com", "--api-key", "abc"]), {
         credentialStore: {
+          async listStorageOptions() {
+            return [
+              { kind: "keychain", available: true },
+              { kind: "file", available: true },
+            ];
+          },
           async loadDefault() {
             return undefined;
           },
           async saveDefault() {
             saved = true;
+            return "keychain";
           },
           async clearDefault() {},
         },
@@ -96,10 +149,18 @@ describe("runLogoutCommand", () => {
 
     const execution = await runLogoutCommand(parseArgv(["logout"]), {
       credentialStore: {
+        async listStorageOptions() {
+          return [
+            { kind: "keychain", available: true },
+            { kind: "file", available: true },
+          ];
+        },
         async loadDefault() {
           return undefined;
         },
-        async saveDefault() {},
+        async saveDefault() {
+          return "keychain";
+        },
         async clearDefault() {
           cleared = true;
         },
@@ -128,10 +189,18 @@ describe("runAuthCommand", () => {
     try {
       const execution = await runAuthCommand(parseArgv(["auth", "status", "--verify"]), {
         credentialStore: {
-          async loadDefault() {
-            return { baseUrl: "https://stored.example.com", apiKey: "stored-key" };
+          async listStorageOptions() {
+            return [
+              { kind: "keychain", available: true },
+              { kind: "file", available: true },
+            ];
           },
-          async saveDefault() {},
+          async loadDefault() {
+            return { baseUrl: "https://stored.example.com", apiKey: "stored-key", storage: "keychain" };
+          },
+          async saveDefault() {
+            return "keychain";
+          },
           async clearDefault() {},
         },
         createClient: () => ({
@@ -148,6 +217,7 @@ describe("runAuthCommand", () => {
         configured: true,
         baseUrl: "https://env.example.com",
         sources: { baseUrl: "env", apiKey: "stored" },
+        storedStorage: "keychain",
         verification: { ok: true, method: "documents.list" },
       });
     } finally {
@@ -170,10 +240,18 @@ describe("runAuthCommand", () => {
     try {
       const execution = await runAuthCommand(parseArgv(["auth", "status"]), {
         credentialStore: {
+          async listStorageOptions() {
+            return [
+              { kind: "keychain", available: false, detail: "missing libsecret" },
+              { kind: "file", available: true },
+            ];
+          },
           async loadDefault() {
             throw new Error("keychain unavailable");
           },
-          async saveDefault() {},
+          async saveDefault() {
+            return "file";
+          },
           async clearDefault() {},
         },
       });
@@ -203,10 +281,18 @@ describe("runAuthCommand", () => {
         },
       }),
       credentialStore: {
+        async listStorageOptions() {
+          return [
+            { kind: "keychain", available: true },
+            { kind: "file", available: true },
+          ];
+        },
         async loadDefault() {
           return undefined;
         },
-        async saveDefault() {},
+        async saveDefault() {
+          return "keychain";
+        },
         async clearDefault() {},
       },
     });

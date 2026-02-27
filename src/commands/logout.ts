@@ -26,7 +26,7 @@ export async function runLogoutCommand(
     response: {
       ok: true,
       cleared: true,
-      stored: "keychain",
+      stored: "cleared",
     },
   };
 }
@@ -36,6 +36,6 @@ export function logoutHelp(): string {
     "Logout command:",
     "  outline logout [--json]",
     "",
-    "Removes stored default credentials from the OS keychain and local auth metadata.",
+    "Removes stored default credentials from all local storage backends.",
   ].join("\n");
 }

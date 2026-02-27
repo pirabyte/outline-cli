@@ -8,6 +8,7 @@ INSTALL_MODE="user"
 BIN_DIR="${BIN_DIR:-}"
 VERIFY_CHECKSUMS=1
 INSTALL_DEPS=1
+CREDENTIAL_STORE="auto"
 
 usage() {
   cat <<'EOF'
@@ -21,6 +22,9 @@ Options:
   --system           Install to /usr/local/bin (may require sudo)
   --bin-dir PATH     Install to a custom bin directory
   --repo OWNER/NAME  Override GitHub repo (default: pirabyte/outline-cli)
+  --credential-store auto|keychain|file
+                     Preferred login storage mode to optimize setup for
+                     (default: auto)
   --no-verify        Skip SHA256 checksum verification
   --no-install-deps  Do not auto-install missing runtime dependencies
   --help             Show this help
@@ -68,6 +72,11 @@ while [[ $# -gt 0 ]]; do
       [[ -n "$REPO_OWNER" && -n "$REPO_NAME" && "$REPO_OWNER" != "$REPO_NAME" ]] || die "Invalid --repo format (expected OWNER/NAME)"
       shift 2
       ;;
+    --credential-store)
+      [[ $# -ge 2 ]] || die "--credential-store requires a value"
+      CREDENTIAL_STORE="$2"
+      shift 2
+      ;;
     --no-verify)
       VERIFY_CHECKSUMS=0
       shift
@@ -85,6 +94,13 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+case "$CREDENTIAL_STORE" in
+  auto|keychain|file) ;;
+  *)
+    die "Invalid --credential-store value: ${CREDENTIAL_STORE} (use auto, keychain, or file)"
+    ;;
+esac
 
 need_cmd curl
 need_cmd tar
@@ -181,7 +197,9 @@ ensure_runtime_deps() {
   die "Need root privileges to install missing dependencies: ${missing[*]}"
 }
 
-ensure_runtime_deps
+if [[ "$CREDENTIAL_STORE" != "file" ]]; then
+  ensure_runtime_deps
+fi
 
 secret_service_available() {
   if ! command -v dbus-send >/dev/null 2>&1; then
@@ -218,6 +236,7 @@ log "Detected distro: $DISTRO"
 log "Detected architecture: $ARCH"
 log "Installing ${REPO_OWNER}/${REPO_NAME} ${TAG}"
 log "Target bin dir: $BIN_DIR"
+log "Credential store mode: $CREDENTIAL_STORE"
 
 log "Downloading ${ASSET}..."
 if ! curl -fL --retry 3 --connect-timeout 10 -o "${TMP_DIR}/${ASSET}" "$ASSET_URL"; then
@@ -271,13 +290,24 @@ if ! command -v outline >/dev/null 2>&1; then
   fi
 fi
 
-if ! secret_service_available; then
+if [[ "$CREDENTIAL_STORE" == "keychain" || "$CREDENTIAL_STORE" == "auto" ]]; then
+  if ! secret_service_available; then
+    log ""
+    log "Keyring note: Secret Service is not currently available in this shell session."
+    log "For login/logout keychain support, run:"
+    log "  dbus-run-session -- bash"
+    log "  eval \"\$(gnome-keyring-daemon --start --components=secrets)\""
+    if [[ "$CREDENTIAL_STORE" == "auto" ]]; then
+      log "Or use file storage directly: outline login --store file"
+    fi
+    log "Then run: outline login"
+  fi
+fi
+
+if [[ "$CREDENTIAL_STORE" == "file" ]]; then
   log ""
-  log "Keyring note: Secret Service is not currently available in this shell session."
-  log "For login/logout keychain support, run:"
-  log "  dbus-run-session -- bash"
-  log "  eval \"\$(gnome-keyring-daemon --start --components=secrets)\""
-  log "Then run: outline login"
+  log "File storage mode selected: skipped keychain dependency checks."
+  log "Use: outline login --store file"
 fi
 
 log "Done. Try: outline help"

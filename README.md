@@ -43,11 +43,18 @@ Install system-wide (may require `sudo`):
 curl -fsSL https://raw.githubusercontent.com/pirabyte/outline-cli/main/install.sh | bash -s -- --system
 ```
 
+If you plan to use file-based credential storage (no keychain deps needed):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/pirabyte/outline-cli/main/install.sh | bash -s -- --credential-store file
+```
+
 Notes:
 
 - The installer targets Debian/Ubuntu Linux
 - It verifies release checksums by default (`SHA256SUMS.txt`)
 - It checks and installs missing runtime dependencies (`libsecret-1-0`, `dbus-user-session`, `dbus-bin`, `gnome-keyring`) by default
+- Use `--credential-store file` to skip keychain dependency setup
 - `arm64` is detected, and install requires a published `outline-linux-arm64.tar.gz` asset
 
 Run:
@@ -85,6 +92,7 @@ Examples:
 
 ```bash
 node dist/cli.js login
+node dist/cli.js login --store file
 node dist/cli.js login --base-url https://your-outline.example.com --api-key "..." --skip-verify
 node dist/cli.js auth status
 node dist/cli.js auth whoami --json
@@ -105,10 +113,12 @@ Commands resolve credentials in this order:
 
 Re-run `outline login` to rotate/update stored credentials.
 Run `outline logout` to clear stored credentials.
+Use `outline login --store auto|keychain|file` to choose where credentials are stored.
 
 ### Secure storage notes
 
 - API keys are stored in the OS keychain (via `keytar`)
+- You can opt into local file storage (`--store file`) when keychain is unavailable
 - Base URL metadata is stored in the user config directory
 - `--profile` is still reserved and not implemented
 - `auth status` inspects credential source presence and can verify with `--verify`

@@ -23,13 +23,22 @@ describe("loadConfig", () => {
 
     const config = await loadConfig({
       credentialStore: {
+        async listStorageOptions() {
+          return [
+            { kind: "keychain", available: true },
+            { kind: "file", available: true },
+          ];
+        },
         async loadDefault() {
           return {
             baseUrl: "https://stored.example.com/",
             apiKey: "stored-key",
+            storage: "keychain",
           };
         },
-        async saveDefault() {},
+        async saveDefault() {
+          return "keychain";
+        },
         async clearDefault() {},
       },
     });
@@ -46,13 +55,22 @@ describe("loadConfig", () => {
       baseUrl: "https://flag.example.com/",
       apiKey: "flag-key",
       credentialStore: {
+        async listStorageOptions() {
+          return [
+            { kind: "keychain", available: true },
+            { kind: "file", available: true },
+          ];
+        },
         async loadDefault() {
           return {
             baseUrl: "https://stored.example.com",
             apiKey: "stored-key",
+            storage: "keychain",
           };
         },
-        async saveDefault() {},
+        async saveDefault() {
+          return "keychain";
+        },
         async clearDefault() {},
       },
     });
@@ -68,13 +86,22 @@ describe("loadConfig", () => {
 
     const config = await loadConfig({
       credentialStore: {
+        async listStorageOptions() {
+          return [
+            { kind: "keychain", available: true },
+            { kind: "file", available: true },
+          ];
+        },
         async loadDefault() {
           return {
             baseUrl: "https://stored.example.com",
             apiKey: "stored-key",
+            storage: "keychain",
           };
         },
-        async saveDefault() {},
+        async saveDefault() {
+          return "keychain";
+        },
         async clearDefault() {},
       },
     });
@@ -89,10 +116,18 @@ describe("loadConfig", () => {
     await expect(
       loadConfig({
         credentialStore: {
+          async listStorageOptions() {
+            return [
+              { kind: "keychain", available: true },
+              { kind: "file", available: true },
+            ];
+          },
           async loadDefault() {
             return undefined;
           },
-          async saveDefault() {},
+          async saveDefault() {
+            return "keychain";
+          },
           async clearDefault() {},
         },
       })

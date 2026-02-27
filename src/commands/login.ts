@@ -2,7 +2,12 @@ import type { ParsedArgs } from "../core/args.js";
 import { getFlagBoolean, getFlagString, hasFlag } from "../core/args.js";
 import { OutlineClient } from "../core/client.js";
 import { normalizeBaseUrl } from "../core/config.js";
-import { createCredentialStore, type CredentialStore } from "../core/credential-store.js";
+import {
+  createCredentialStore,
+  type CredentialStorageKind,
+  type CredentialStore,
+  type CredentialStorageOption,
+} from "../core/credential-store.js";
 import { CliUsageError } from "../core/errors.js";
 import { promptLine, promptSecret } from "../core/prompt.js";
 
@@ -35,22 +40,26 @@ export async function runLoginCommand(
 
   const providedBaseUrl = getFlagString(args, "base-url");
   const providedApiKey = getFlagString(args, "api-key");
+  const storageFlag = getFlagString(args, "store");
 
   const baseUrl = await resolveBaseUrl(providedBaseUrl, askLine);
   const apiKey = await resolveApiKey(providedApiKey, askSecret);
+  const storageOptions = await credentialStore.listStorageOptions();
+  const storage = await resolveStoragePreference(storageFlag, storageOptions, askLine);
 
   if (!skipVerify) {
     const client = createClient({ baseUrl, apiKey });
     await client.post("documents.list", { limit: 1 });
   }
 
-  await credentialStore.saveDefault({ baseUrl, apiKey });
+  const savedStorage = await credentialStore.saveDefault({ baseUrl, apiKey }, { storage });
 
   return {
     method: skipVerify ? "auth.login.store" : "auth.login.verify+store",
     request: {
       baseUrl,
       skipVerify,
+      storage,
       prompted: {
         baseUrl: !providedBaseUrl,
         apiKey: !providedApiKey,
@@ -59,7 +68,8 @@ export async function runLoginCommand(
     response: {
       ok: true,
       baseUrl,
-      stored: "keychain",
+      stored: savedStorage,
+      availableStorage: storageOptions,
       verified: !skipVerify,
       apiKey: { redacted: true, hint: redactApiKey(apiKey) },
     },
@@ -69,9 +79,9 @@ export async function runLoginCommand(
 export function loginHelp(): string {
   return [
     "Login command:",
-    "  outline login [--base-url URL] [--api-key TOKEN] [--skip-verify] [--json]",
+    "  outline login [--base-url URL] [--api-key TOKEN] [--store auto|keychain|file] [--skip-verify] [--json]",
     "",
-    "Prompts for any missing values and stores credentials securely in the OS keychain.",
+    "Prompts for any missing values and stores credentials in your selected backend.",
     "By default, credentials are verified before saving using Outline's API.",
   ].join("\n");
 }
@@ -95,4 +105,70 @@ async function resolveApiKey(raw: string | undefined, askSecret: typeof promptSe
 function redactApiKey(apiKey: string): string {
   if (apiKey.length <= 8) return "********";
   return `${apiKey.slice(0, 4)}…${apiKey.slice(-4)}`;
+}
+
+async function resolveStoragePreference(
+  raw: string | undefined,
+  options: CredentialStorageOption[],
+  askLine: typeof promptLine,
+): Promise<CredentialStorageKind> {
+  const normalized = (raw ?? "auto").trim().toLowerCase();
+  if (!["auto", "keychain", "file"].includes(normalized)) {
+    throw new CliUsageError("Invalid --store value. Use: auto, keychain, or file.");
+  }
+
+  if (normalized === "keychain" || normalized === "file") {
+    return requireAvailableStorage(normalized, options);
+  }
+
+  const keychain = options.find((option) => option.kind === "keychain");
+  const file = options.find((option) => option.kind === "file");
+  const defaultStorage: CredentialStorageKind = keychain?.available ? "keychain" : "file";
+
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    return defaultStorage;
+  }
+
+  const keychainLabel = keychain?.available
+    ? "keychain (recommended)"
+    : `keychain (unavailable: ${keychain?.detail ?? "unknown"})`;
+  const fileLabel = file?.available
+    ? "file (less secure)"
+    : `file (unavailable: ${file?.detail ?? "unknown"})`;
+
+  const prompt = [
+    "Choose credential storage:",
+    `  1) ${keychainLabel}`,
+    `  2) ${fileLabel}`,
+    `Select [1-2] (default ${defaultStorage === "keychain" ? "1" : "2"}): `,
+  ].join("\n");
+
+  const answer = (await askLine(prompt)).trim();
+  const selected =
+    answer === "2"
+      ? "file"
+      : answer === "1"
+        ? "keychain"
+        : answer === ""
+          ? defaultStorage
+        : undefined;
+
+  if (!selected) {
+    throw new CliUsageError("Invalid storage selection. Choose 1 or 2.");
+  }
+
+  return requireAvailableStorage(selected, options);
+}
+
+function requireAvailableStorage(
+  storage: CredentialStorageKind,
+  options: CredentialStorageOption[],
+): CredentialStorageKind {
+  const match = options.find((option) => option.kind === storage);
+  if (!match?.available) {
+    throw new CliUsageError(
+      `Selected storage backend '${storage}' is unavailable${match?.detail ? `: ${match.detail}` : "."}`
+    );
+  }
+  return storage;
 }
