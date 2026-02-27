@@ -1,8 +1,8 @@
 # outline-cli
 
-Agent-friendly CLI for [Outline](https://github.com/outline/outline) page (document) CRUD operations.
+Agent-friendly CLI for [Outline](https://github.com/outline/outline) page (document) and collection CRUD operations.
 
-This project talks directly to Outline's RPC API (`/api/documents.*`) and is designed for automation and AI-agent workflows.
+This project talks directly to Outline's RPC API (`/api/documents.*`, `/api/collections.*`) and is designed for automation and AI-agent workflows.
 
 ## Features (current MVP)
 
@@ -11,6 +11,7 @@ This project talks directly to Outline's RPC API (`/api/documents.*`) and is des
 - `page append`, `prepend`
 - `page move`, `archive`, `delete`, `restore`
 - `page search`, `find` (title search)
+- `collection get`, `list`, `create`, `update`, `delete`
 - JSON output for scripting (`--json`)
 - `.env` compatibility with both:
   - `OUTLINE_BASE_URL` / `OUTLINE_API_KEY`
@@ -101,6 +102,8 @@ node dist/cli.js page get <id> --json
 node dist/cli.js page create --title "Draft" --text "Hello" --json
 node dist/cli.js page append <id> --stdin --json
 node dist/cli.js page delete <id> --json
+node dist/cli.js collection list --limit 10 --json
+node dist/cli.js collection create --name "Engineering Docs" --description "Team knowledge" --json
 ```
 
 ## Authentication precedence

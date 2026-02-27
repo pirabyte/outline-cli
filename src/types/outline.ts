@@ -32,6 +32,19 @@ export interface OutlineSearchResult {
   [key: string]: unknown;
 }
 
+export interface OutlineCollection {
+  id: string;
+  name?: string;
+  description?: string | null;
+  permission?: string;
+  private?: boolean;
+  color?: string | null;
+  icon?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  [key: string]: unknown;
+}
+
 export interface OutlineRpcEnvelope<T> {
   ok?: boolean;
   status?: number;
@@ -43,4 +56,3 @@ export interface OutlineRpcEnvelope<T> {
   policies?: OutlinePolicy[];
   [key: string]: unknown;
 }
-

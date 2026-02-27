@@ -2,7 +2,7 @@
   "name": "outline-cli",
   "version": "0.1.0",
   "private": true,
-  "description": "Agent-friendly CLI for Outline document CRUD operations",
+  "description": "Agent-friendly CLI for Outline document and collection CRUD operations",
   "type": "module",
   "packageManager": "bun@1.3.6",
   "bin": {
