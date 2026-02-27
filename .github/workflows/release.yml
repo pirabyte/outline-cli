@@ -142,7 +142,7 @@ jobs:
     name: Update Homebrew tap (optional)
     needs: release
     runs-on: ubuntu-latest
-    if: ${{ secrets.HOMEBREW_TAP_PAT != '' }}
+    continue-on-error: true
     steps:
       - name: Checkout source repo
         uses: actions/checkout@v4
