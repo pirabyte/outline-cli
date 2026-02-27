@@ -47,7 +47,7 @@ Notes:
 
 - The installer targets Debian/Ubuntu Linux
 - It verifies release checksums by default (`SHA256SUMS.txt`)
-- It checks and installs missing runtime dependencies (`libsecret-1-0`, `dbus-user-session`) by default
+- It checks and installs missing runtime dependencies (`libsecret-1-0`, `dbus-user-session`, `dbus-bin`, `gnome-keyring`) by default
 - `arm64` is detected, and install requires a published `outline-linux-arm64.tar.gz` asset
 
 Run:

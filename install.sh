@@ -147,7 +147,7 @@ TAG="$(resolve_version)"
 ensure_runtime_deps() {
   local missing=()
   local pkg
-  for pkg in libsecret-1-0 dbus-user-session; do
+  for pkg in libsecret-1-0 dbus-user-session dbus-bin gnome-keyring; do
     if ! dpkg-query -W -f='${Status}\n' "$pkg" 2>/dev/null | grep -q "install ok installed"; then
       missing+=("$pkg")
     fi
@@ -182,6 +182,18 @@ ensure_runtime_deps() {
 }
 
 ensure_runtime_deps
+
+secret_service_available() {
+  if ! command -v dbus-send >/dev/null 2>&1; then
+    return 1
+  fi
+
+  dbus-send --session \
+    --dest=org.freedesktop.secrets \
+    --type=method_call \
+    /org/freedesktop/secrets \
+    org.freedesktop.DBus.Peer.Ping >/dev/null 2>&1
+}
 
 if [[ -z "$BIN_DIR" ]]; then
   if [[ "$INSTALL_MODE" == "system" ]]; then
@@ -257,6 +269,15 @@ if ! command -v outline >/dev/null 2>&1; then
   if [[ "$BIN_DIR" == "${HOME}/.local/bin" ]]; then
     log "Add this to your shell config if needed: export PATH=\"\$HOME/.local/bin:\$PATH\""
   fi
+fi
+
+if ! secret_service_available; then
+  log ""
+  log "Keyring note: Secret Service is not currently available in this shell session."
+  log "For login/logout keychain support, run:"
+  log "  dbus-run-session -- bash"
+  log "  eval \"\$(gnome-keyring-daemon --start --components=secrets)\""
+  log "Then run: outline login"
 fi
 
 log "Done. Try: outline help"
