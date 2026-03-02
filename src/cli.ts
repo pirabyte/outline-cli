@@ -7,6 +7,7 @@ import { OutlineClient } from "./core/client.js";
 import { CliUsageError, OutlineApiError, mapErrorToExitCode } from "./core/errors.js";
 import { printOutput } from "./core/output.js";
 import { runPageCommand, pageHelp } from "./commands/page/index.js";
+import { runCollectionCommand, collectionHelp } from "./commands/collection/index.js";
 import { loginHelp, runLoginCommand } from "./commands/login.js";
 import { logoutHelp, runLogoutCommand } from "./commands/logout.js";
 import { authHelp, runAuthCommand } from "./commands/auth.js";
@@ -128,6 +129,12 @@ async function dispatch(
       }
       return runPageCommand(client, args);
     }
+    case "collection": {
+      if (dryRun) {
+        return buildDryRunForCollection(args);
+      }
+      return runCollectionCommand(client, args);
+    }
     case "help":
       throw new CliUsageError(rootHelp());
     case "login":
@@ -176,6 +183,34 @@ async function buildDryRunForPage(args: ReturnType<typeof parseArgv>) {
   return { method, request, response: { dryRun: true } };
 }
 
+async function buildDryRunForCollection(args: ReturnType<typeof parseArgv>) {
+  const subcommand = args.positionals[1];
+  if (!subcommand) {
+    throw new CliUsageError(collectionHelp());
+  }
+
+  const methodBySubcommand: Record<string, string> = {
+    get: "collections.info",
+    list: "collections.list",
+    create: "collections.create",
+    update: "collections.update",
+    delete: "collections.delete",
+  };
+
+  const method = methodBySubcommand[subcommand];
+  if (!method) {
+    throw new CliUsageError(`Unsupported dry-run for collection subcommand: ${subcommand}`);
+  }
+
+  const request = {
+    note: "Dry-run only previews method mapping. Full request payload preview will be added in a later iteration.",
+    positionals: args.positionals,
+    flags: args.flags,
+  };
+
+  return { method, request, response: { dryRun: true } };
+}
+
 function rootHelp(): string {
   return [
     "Outline CLI (MVP)",
@@ -198,10 +233,13 @@ function rootHelp(): string {
     "  outline logout [options]",
     "  outline auth <status|whoami> [options]",
     "  outline page <subcommand> [options]",
+    "  outline collection <subcommand> [options]",
     "",
     authHelp(),
     "",
     pageHelp(),
+    "",
+    collectionHelp(),
   ].join("\n");
 }
 
