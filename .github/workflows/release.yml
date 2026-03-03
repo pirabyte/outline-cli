@@ -158,10 +158,10 @@ jobs:
         shell: bash
         run: |
           cd release
-          DARWIN_ARM64_SHA=$(awk '/outline-darwin-arm64.tar.gz$/ {print $1}' SHA256SUMS.txt)
-          DARWIN_X64_SHA=$(awk '/outline-darwin-x64.tar.gz$/ {print $1}' SHA256SUMS.txt)
-          LINUX_X64_SHA=$(awk '/outline-linux-x64.tar.gz$/ {print $1}' SHA256SUMS.txt)
-          LINUX_ARM64_SHA=$(awk '/outline-linux-arm64.tar.gz$/ {print $1}' SHA256SUMS.txt)
+          DARWIN_ARM64_SHA=$(sha256sum outline-darwin-arm64.tar.gz | awk '{print $1}')
+          DARWIN_X64_SHA=$(sha256sum outline-darwin-x64.tar.gz | awk '{print $1}')
+          LINUX_X64_SHA=$(sha256sum outline-linux-x64.tar.gz | awk '{print $1}')
+          LINUX_ARM64_SHA=$(sha256sum outline-linux-arm64.tar.gz | awk '{print $1}')
           echo "darwin_arm64_sha=$DARWIN_ARM64_SHA" >> "$GITHUB_OUTPUT"
           echo "darwin_x64_sha=$DARWIN_X64_SHA" >> "$GITHUB_OUTPUT"
           echo "linux_x64_sha=$LINUX_X64_SHA" >> "$GITHUB_OUTPUT"
