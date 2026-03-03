@@ -133,4 +133,31 @@ describe("loadConfig", () => {
       })
     ).rejects.toThrow("outline login");
   });
+
+  test("does not use APP_URL or API_KEY aliases", async () => {
+    delete process.env.OUTLINE_BASE_URL;
+    delete process.env.OUTLINE_API_KEY;
+    process.env.APP_URL = "https://wrong.example.com";
+    process.env.API_KEY = "wrong-key";
+
+    await expect(
+      loadConfig({
+        credentialStore: {
+          async listStorageOptions() {
+            return [
+              { kind: "keychain", available: true },
+              { kind: "file", available: true },
+            ];
+          },
+          async loadDefault() {
+            return undefined;
+          },
+          async saveDefault() {
+            return "keychain";
+          },
+          async clearDefault() {},
+        },
+      })
+    ).rejects.toThrow("OUTLINE_BASE_URL");
+  });
 });

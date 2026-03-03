@@ -266,6 +266,46 @@ describe("runAuthCommand", () => {
     }
   });
 
+  test("status ignores APP_URL and API_KEY aliases", async () => {
+    const originalEnv = {
+      OUTLINE_BASE_URL: process.env.OUTLINE_BASE_URL,
+      OUTLINE_API_KEY: process.env.OUTLINE_API_KEY,
+      APP_URL: process.env.APP_URL,
+      API_KEY: process.env.API_KEY,
+    };
+    delete process.env.OUTLINE_BASE_URL;
+    delete process.env.OUTLINE_API_KEY;
+    process.env.APP_URL = "https://wrong.example.com";
+    process.env.API_KEY = "wrong-key";
+
+    try {
+      const execution = await runAuthCommand(parseArgv(["auth", "status"]), {
+        credentialStore: {
+          async listStorageOptions() {
+            return [
+              { kind: "keychain", available: false, detail: "missing libsecret" },
+              { kind: "file", available: true },
+            ];
+          },
+          async loadDefault() {
+            return undefined;
+          },
+          async saveDefault() {
+            return "file";
+          },
+          async clearDefault() {},
+        },
+      });
+
+      expect(execution.response).toMatchObject({
+        configured: false,
+        sources: { baseUrl: "none", apiKey: "none" },
+      });
+    } finally {
+      restoreEnv(originalEnv);
+    }
+  });
+
   test("whoami resolves config and calls auth.info", async () => {
     const calls: Array<{ method: string; body: Record<string, unknown> }> = [];
     const execution = await runAuthCommand(parseArgv(["auth", "whoami"]), {

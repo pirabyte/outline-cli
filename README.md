@@ -13,9 +13,7 @@ This project talks directly to Outline's RPC API (`/api/documents.*`, `/api/coll
 - `page search`, `find` (title search)
 - `collection get`, `list`, `create`, `update`, `delete`
 - JSON output for scripting (`--json`)
-- `.env` compatibility with both:
-  - `OUTLINE_BASE_URL` / `OUTLINE_API_KEY`
-  - `APP_URL` / `API_KEY`
+- `.env` compatibility with `OUTLINE_BASE_URL` / `OUTLINE_API_KEY`
 
 ## Install (development)
 
@@ -111,7 +109,7 @@ node dist/cli.js collection create --name "Engineering Docs" --description "Team
 Commands resolve credentials in this order:
 
 1. CLI flags (`--base-url`, `--api-key`)
-2. Environment variables (`OUTLINE_BASE_URL` / `OUTLINE_API_KEY`, aliases `APP_URL` / `API_KEY`)
+2. Environment variables (`OUTLINE_BASE_URL` / `OUTLINE_API_KEY`)
 3. Stored credentials from `outline login`
 
 Re-run `outline login` to rotate/update stored credentials.

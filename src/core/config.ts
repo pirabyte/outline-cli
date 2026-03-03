@@ -19,12 +19,11 @@ export async function loadConfig(overrides?: {
   }
 
   let baseUrl = normalizeBaseUrl(
-    overrides?.baseUrl ?? process.env.OUTLINE_BASE_URL ?? process.env.APP_URL
+    overrides?.baseUrl ?? process.env.OUTLINE_BASE_URL
   );
   let apiKey = (
     overrides?.apiKey ??
     process.env.OUTLINE_API_KEY ??
-    process.env.API_KEY ??
     ""
   ).trim();
 
@@ -41,12 +40,12 @@ export async function loadConfig(overrides?: {
 
   if (!baseUrl) {
     throw new CliUsageError(
-      "Missing Outline base URL. Set --base-url or OUTLINE_BASE_URL (APP_URL is also supported), or run `outline login`."
+      "Missing Outline base URL. Set --base-url or OUTLINE_BASE_URL, or run `outline login`."
     );
   }
   if (!apiKey) {
     throw new CliUsageError(
-      "Missing Outline API key. Set --api-key or OUTLINE_API_KEY (API_KEY is also supported), or run `outline login`."
+      "Missing Outline API key. Set --api-key or OUTLINE_API_KEY, or run `outline login`."
     );
   }
 

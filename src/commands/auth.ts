@@ -61,8 +61,8 @@ async function runAuthStatus(args: ParsedArgs, deps?: AuthCommandDeps): Promise<
 
   const flagBaseUrl = normalizeBaseUrl(getFlagString(args, "base-url"));
   const flagApiKey = (getFlagString(args, "api-key") ?? "").trim();
-  const envBaseUrl = normalizeBaseUrl(process.env.OUTLINE_BASE_URL ?? process.env.APP_URL);
-  const envApiKey = (process.env.OUTLINE_API_KEY ?? process.env.API_KEY ?? "").trim();
+  const envBaseUrl = normalizeBaseUrl(process.env.OUTLINE_BASE_URL);
+  const envApiKey = (process.env.OUTLINE_API_KEY ?? "").trim();
 
   let storedLoadError: string | undefined;
   let storedBaseUrl = "";
