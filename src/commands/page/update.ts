@@ -1,8 +1,10 @@
 import { getFlagBoolean, getFlagString } from "../../core/args.js";
 import { CliUsageError } from "../../core/errors.js";
 import { parseNullableString, readTextInput } from "../../core/utils.js";
+
 import type { OutlineDocument } from "../../types/outline.js";
 import type { CommandContext, CommandExecution } from "./shared.js";
+
 import { getDocumentId, maybeCheckUpdatedAtGuard } from "./shared.js";
 
 export async function runPageUpdate(ctx: CommandContext): Promise<CommandExecution> {
